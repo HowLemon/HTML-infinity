@@ -7,13 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <style>
-        body{
+        body {
             overflow: hidden;
         }
+
         #player {
             position: absolute;
             top: 50vh;
             left: 50vw;
+            z-index: 100;
         }
 
         #player img {
@@ -59,45 +61,36 @@
             transform: scaleX(-1);
         }
 
-        .grid-container {
-            position: absolute;
-            display: grid;
-            /* grid-template-columns: auto auto auto auto auto auto; */
-            grid-template-rows: 50;
-        }
-
-        .grid-item {
-            background-color: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(0, 0, 0, 0.8);
-            width: 100px;
-            height: 100px;
-            font-size: 30px;
-            text-align: center;
-        }
-        #tiles{
+        #tiles {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%,-50%);
+            transform: translate(-50%, -50%);
             width: max-content;
             height: max-content;
         }
 
-        #tiles table{
+        #tiles table {
             border-spacing: -0.5;
             border-collapse: collapse;
         }
 
-        #tiles tr{
+        #tiles tr {
             height: 50px;
         }
 
-        #tiles td{
-            border: 1px solid;
+        #tiles td {
+            /* border: 1px solid; */
             width: 50px;
             height: 50px;
+            overflow: visible;
         }
 
+        #tiles img {
+            display: inline;
+            position: absolute;
+            /* z-index: -1; */
+        }
     </style>
 </head>
 
@@ -118,7 +111,7 @@
 <script>
     const position = { x: 0, y: 0 };
     const velocity = { x: 0, y: 0 };
-    const worldPosition = {x:0, y:0};
+    const worldPosition = { x: 0, y: 0 };
 
     const calculatedVelocity = { x: 0, y: 0 };
     const mapTiles = document.getElementById("tiles");
@@ -128,24 +121,52 @@
 
     const walkSpeed = 3;
 
-    const tileSize = 21;
-    let seed = 5000;
+    const tileSize = 31;
+    let seed = 2;
 
     let tiles = null;
+    let tilesArray = [];
 
-    function generateGrid(size){
+
+    const grass = document.createElement("IMG");
+    grass.src = "grass.png"
+
+    function generateGrid(size) {
         let table = document.createElement("table");
-        for(let i = 0; i< size;i++){
+        for (let i = 0; i < size; i++) {
             let row = table.insertRow()
-            for(let j = 0; j < size; j++){
+            for (let j = 0; j < size; j++) {
                 let cell = row.insertCell();
+                
             }
         }
         return table;
     }
 
-    function setTileNumber(xOffset,yOffset){
-        
+    function setTileNumber(xOffset, yOffset) {
+        tilesArray.forEach((row, rowIdx) => {
+            row.forEach(((cell, cellIdx) => {
+                // cell.innerHTML = cellIdx + xOffset + (rowIdx + yOffset) * tileSize;
+                // cell.innerHTML = `[${cellIdx + xOffset}, ${rowIdx + yOffset}]`;
+                let random = getFakeRandom(seed, cellIdx + xOffset, rowIdx + yOffset)
+                let random2 = getFakeRandom(seed, random * 100, random * 100);
+                if (random > 0.5) {
+                    cell.innerHTML = "";
+                } else if (random > 0.47) {
+                    cell.innerHTML = `<img src='grass.png' style='transform:translate(${Math.sin(random * 1000)*25}px, ${Math.sin(random2 * 1000)*50}px)'>`;
+                } else if(random > 0.1 && random2 > 0.09 && random2 < 0.08){
+                    cell.innerHTML = `<img src='flower.png' style='transform:translate(${Math.sin(random * 1000)*25}px, ${Math.sin(random2 * 1000)*50}px)'>`;
+                } else if(random > 0.01 && random2 < 0.079){
+                    cell.innerHTML = `<img src='tree.png' style='transform:translate(${Math.sin(random * 1000)*25}px, ${Math.sin(random2 * 1000)*50}px)'>`;
+
+                }
+                else {
+                    cell.innerHTML = "";
+                }
+
+            }))
+        })
+
     }
 
 
@@ -160,9 +181,13 @@
     }
 
     function getFakeRandom(seed, x, y) {
-        let xVal = (mulberry32(x / (seed || 1)))();
-        let yVal = (mulberry32(y / (seed || 1)))();
-        return (xVal + yVal) / 2;
+        let randomizer = mulberry32(Math.sin(x * y) + Math.sin(x / y) + seed)
+        let xVal = (mulberry32(x + seed + randomizer() + 1))();
+        let yVal = (mulberry32(y + xVal + randomizer()+ 1))();
+        for (let i = 0; i < (xVal + yVal) * 10; i++) {
+            randomizer()
+        }
+        return randomizer();
     }
 
     document.onkeydown = (e) => {
@@ -215,12 +240,12 @@
             calculatedVelocity.x = velocity.x;
             calculatedVelocity.y = velocity.y;
         }
-        
+
     }
 
-    const sqrtBar = 0.707
+    const sqrtBar = 1 / Math.sqrt(2);
 
-
+    let lastOffset = { x: null, y: null };
 
     const frame = () => {
         if (calculatedVelocity.x != 0 || calculatedVelocity.y != 0) {
@@ -236,12 +261,28 @@
 
         worldPosition.x += calculatedVelocity.x * walkSpeed;
         worldPosition.y += calculatedVelocity.y * walkSpeed;
-        tiles.style.transform = `translate(${-worldPosition.x % 50}px, ${worldPosition.y % 50}px)`;
+        tiles.style.transform = `translate(${(-worldPosition.x % 50)}px, ${worldPosition.y % 50}px)`;
+        let xComp = 0, yComp = 0;
+        if(worldPosition.x >= 0){
+            xComp = -1;
+        }
+        if(worldPosition.y >= 0){
+            yComp = 1;
+        }
+
+        let currOffset = { x: Math.floor(worldPosition.x / 50) + xComp, y: Math.floor(-worldPosition.y / 50) +yComp}
+        if (lastOffset.x != currOffset.x || lastOffset.y != currOffset.y) {
+            setTileNumber(currOffset.x, currOffset.y);
+            lastOffset = currOffset;
+        }
         monitor.innerHTML = JSON.stringify(calculatedVelocity) + "\n" + JSON.stringify(worldPosition);
     }
 
-    const init = ()=>{
-        tiles = generateGrid(tileSize)
+    const init = () => {
+        tiles = generateGrid(tileSize);
+        [...tiles.rows].forEach(row => {
+            tilesArray.push([...row.cells]);
+        })
         mapTiles.append(tiles);
         setInterval(frame, 10);
     }
